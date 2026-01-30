@@ -1,47 +1,58 @@
-name: Rust Multiplatform Build
+name: Rust Multiplatform Build & Release
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - 'v*'  # Solo se dispara en tags como v1.0, v1.1, etc.
 
 jobs:
-  linux:
+  build-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --release
-      - uses: actions/upload-artifact@v4     
-        with:
-          name: rust-test-linux
-          path: target/release/rust-test
 
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+      # Linux build
+      - run: cargo build --release
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      # Upload Linux binary
+      - uses: actions/upload-release-asset@v2
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/release/rust-test
+          asset_name: rust-test-linux
+          asset_content_type: application/octet-stream
+
+      # Windows build
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --release
-      - uses: actions/upload-artifact@v4     
+      - run: cargo build --release --target x86_64-pc-windows-gnu
+      - uses: actions/upload-release-asset@v2
         with:
-          name: rust-test-windows
-          path: target\release\rust-test.exe
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/x86_64-pc-windows-gnu/release/rust-test.exe
+          asset_name: rust-test-windows.exe
+          asset_content_type: application/octet-stream
 
-  mac:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
+      # Mac build
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --release
-      - uses: actions/upload-artifact@v4      
+      - run: cargo build --release --target x86_64-apple-darwin
+      - uses: actions/upload-release-asset@v2
         with:
-          name: rust-test-mac
-          path: target/release/rust-test
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/x86_64-apple-darwin/release/rust-test
+          asset_name: rust-test-mac
+          asset_content_type: application/octet-stream
