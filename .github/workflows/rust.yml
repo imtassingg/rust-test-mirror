@@ -10,16 +10,114 @@ permissions:
   contents: write
 
 jobs:
-  build-release:
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
-      # Linux build
-      - run: cargo build --release
+      - name: Build (release)
+        run: |
+          cargo build --release
+          # optional: strip to reduce size
+          strip target/release/rust-test || true
+
+      - name: Package Linux binary
+        run: |
+          mkdir -p dist
+          tar -czf dist/rust-test-linux.tar.gz -C target/release rust-test
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-test-linux
+          path: dist/rust-test-linux.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build (release) - Windows
+        shell: pwsh
+        run: |
+          cargo build --release
+
+      - name: Package Windows binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Compress-Archive -Path target\release\rust-test.exe -DestinationPath dist\rust-test-windows.zip
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-test-windows
+          path: dist/rust-test-windows.zip
+
+  build-mac:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build (release) - macOS
+        run: |
+          cargo build --release
+          chmod +x target/release/rust-test || true
+
+      - name: Package macOS binary
+        run: |
+          mkdir -p dist
+          tar -czf dist/rust-test-mac.tar.gz -C target/release rust-test
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-test-mac
+          path: dist/rust-test-mac.tar.gz
+
+  create-release:
+    name: Create GitHub Release and attach artifacts
+    needs: [build-linux, build-windows, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: rust-test-linux
+          path: artifacts/linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: rust-test-windows
+          path: artifacts/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: rust-test-mac
+          path: artifacts/macos
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -31,40 +129,32 @@ jobs:
           draft: false
           prerelease: false
 
-      # Upload Linux binary
-      - uses: actions/upload-release-asset@v1
+      - name: Upload Linux asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/release/rust-test
-          asset_name: rust-test-linux
-          asset_content_type: application/octet-stream
+          asset_path: artifacts/linux/dist/rust-test-linux.tar.gz
+          asset_name: rust-test-linux.tar.gz
+          asset_content_type: application/gzip
 
-      # Windows build
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - run: cargo build --release --target x86_64-pc-windows-gnu
-      - uses: actions/upload-release-asset@v1
+      - name: Upload Windows asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x86_64-pc-windows-gnu/release/rust-test.exe
-          asset_name: rust-test-windows.exe
-          asset_content_type: application/octet-stream
+          asset_path: artifacts/windows/dist/rust-test-windows.zip
+          asset_name: rust-test-windows.zip
+          asset_content_type: application/zip
 
-      # Mac build
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - run: cargo build --release --target x86_64-apple-darwin
-      - uses: actions/upload-release-asset@v1
+      - name: Upload macOS asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/x86_64-apple-darwin/release/rust-test
-          asset_name: rust-test-mac
-          asset_content_type: application/octet-stream
+          asset_path: artifacts/macos/dist/rust-test-mac.tar.gz
+          asset_name: rust-test-mac.tar.gz
+          asset_content_type: application/gzip
