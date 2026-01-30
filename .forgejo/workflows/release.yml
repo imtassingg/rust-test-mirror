@@ -1,0 +1,23 @@
+name: Rust Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Instalar Rust
+        run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+      - name: Compilar release
+        run: cargo build --release
+
+      - name: Crear zip
+        run: zip -r rust-test-release.zip target/release/rust-test
+

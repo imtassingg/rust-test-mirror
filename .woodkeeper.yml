@@ -1,0 +1,24 @@
+pipeline:
+  linux_build:
+    image: rust:latest
+    commands:
+      - rustup target add x86_64-unknown-linux-gnu
+      - cargo build --release --target x86_64-unknown-linux-gnu
+    artifacts:
+      - target/x86_64-unknown-linux-gnu/release/rust-test
+
+  windows_build:
+    image: rustembedded/cross:x86_64-pc-windows-gnu
+    commands:
+      - cargo build --release --target x86_64-pc-windows-gnu
+    artifacts:
+      - target/x86_64-pc-windows-gnu/release/rust-test.exe
+
+  mac_build:
+    image: messense/rust-musl-cross:x86_64-apple-darwin
+    commands:
+      - cargo build --release --target x86_64-apple-darwin
+    artifacts:
+      - target/x86_64-apple-darwin/release/rust-test
+
+
