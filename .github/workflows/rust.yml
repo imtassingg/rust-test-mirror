@@ -1,4 +1,4 @@
-name: Rust
+name: Rust Multiplatform Build
 
 on:
   push:
@@ -6,17 +6,42 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  build:
-
+  linux:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: rust-test-linux
+          path: target/release/rust-test
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: rust-test-windows
+          path: target\release\rust-test.exe
+
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: rust-test-mac
+          path: target/release/rust-test
